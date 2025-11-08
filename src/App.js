@@ -1,15 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AppBar, Toolbar, Typography, Container, Box, Button, IconButton, Chip, Switch, FormControlLabel } from '@mui/material';
-import AddCommentIcon from '@mui/icons-material/AddComment';
-import KeyIcon from '@mui/icons-material/Key';
-import CodeIcon from '@mui/icons-material/Code';
-import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
-import Brightness4Icon from '@mui/icons-material/Brightness4';
-import Brightness7Icon from '@mui/icons-material/Brightness7';
+import { Box } from '@mui/material';
 import ApiKeyDialog from './components/ApiKeyDialog';
-import ProblemForm from './components/ProblemForm';
-import ChatWindow from './components/ChatWindow';
-import ChatInput from './components/ChatInput';
+import ImageSlideshow from './components/ImageSlideshow';
+import PromptEditDialog from './components/PromptEditDialog';
+import Header from './components/Header';
+import InitialView from './components/InitialView';
+import MainView from './components/MainView';
 import getGeminiChatResponse from './utils/geminiApi';
 import './App.css';
 
@@ -26,7 +22,34 @@ function App() {
     const saved = localStorage.getItem('darkMode');
     return saved ? JSON.parse(saved) : false;
   });
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [showSlideshow, setShowSlideshow] = useState(false);
+  const [slideshowIndex, setSlideshowIndex] = useState(0);
+  const [showPromptDialog, setShowPromptDialog] = useState(false);
+  const [systemPrompt, setSystemPrompt] = useState(() => {
+    return localStorage.getItem('systemPrompt') || `You are **CodeMate**, an expert AI pair programmer collaborating with an experienced developer.
+
+## Your Role
+You are not a full solution generator, but an active coding collaborator.
+You discuss, refine, and evolve the user's code while respecting their logic, naming conventions, and style.
+When appropriate, you may offer concise hints or targeted code fragments that align with the user’s own reasoning.
+
+## Collaboration Principles
+1. Always **anchor your responses in the user's provided code, problem, and logic**.
+2. You may provide **brief, relevant suggestions or code fragments**, but never rewrite the full program unless explicitly requested.
+3. Focus only on the **specific change, refinement, or idea** the user wants to improve.
+4. If the user’s intent is unclear, first clarify before suggesting code.
+5. When suggesting code:
+   - Show only **the modified fragment or diff**, not the whole file.
+   - Add **brief inline comments** to explain why a change helps.
+6. Keep tone conversational — like two developers pair-programming.
+7. Avoid generic or historical solutions unless directly relevant to the user's approach.
+8. Balance curiosity with initiative — don’t just ask questions; add value through small, thoughtful suggestions.`;
+  });
   const containerRef = useRef(null);
+
+  // Array of images for slideshow
+  const images = ['/IMG1.jpg', '/IMG2.jpg', '/IMG3.jpg', '/IMG4.jpg'];
 
   useEffect(() => {
     if (!geminiApiKey) {
@@ -39,12 +62,36 @@ function App() {
   }, [darkMode]);
 
   useEffect(() => {
+    localStorage.setItem('systemPrompt', systemPrompt);
+  }, [systemPrompt]);
+
+  // Slideshow effect - rotates images every 3 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prevIndex) => (prevIndex + 1) % images.length);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [images.length]);
+
+  // Auto-advance slideshow in modal
+  useEffect(() => {
+    if (!showSlideshow) return;
+
+    const interval = setInterval(() => {
+      setSlideshowIndex((prevIndex) => (prevIndex + 1) % images.length);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [showSlideshow, images.length]);
+
+  useEffect(() => {
     const handleMouseMove = (e) => {
       if (!isResizing || !containerRef.current) return;
-      
+
       const containerRect = containerRef.current.getBoundingClientRect();
       const newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
-      
+
       if (newWidth >= 20 && newWidth <= 50) {
         setLeftPanelWidth(newWidth);
       }
@@ -81,6 +128,20 @@ function App() {
     setDarkMode(!darkMode);
   };
 
+  const handleOpenSlideshow = () => {
+    setSlideshowIndex(currentImageIndex);
+    setShowSlideshow(true);
+  };
+
+  const handleCloseSlideshow = () => {
+    setShowSlideshow(false);
+  };
+
+  const handleSavePrompt = (newPrompt) => {
+    setSystemPrompt(newPrompt);
+    setShowPromptDialog(false);
+  };
+
   const callGeminiApi = async (history, message) => {
     if (!geminiApiKey) {
       alert('Please enter your Gemini API key first.');
@@ -109,38 +170,20 @@ function App() {
 
   const handleProblemSubmit = async (formData) => {
     setProblemData(formData);
-const initialPrompt = `
-You are **CodeMate**, an AI pair programmer assisting professional developers in refining and evolving their code.
+    const initialPrompt = `
+${systemPrompt}
 
-Context:
-The user is an experienced developer who shares a problem statement, test cases, expected output, and possibly an existing code snippet.
-They do NOT want a complete solution — instead, they expect adaptive collaboration to shape the code according to their own logic and design philosophy.
-
-Your Core Principles:
-1. Understand the user's problem, constraints, and coding intent deeply.
-2. Never replace or rewrite full programs unless explicitly asked.
-3. When modifying or refactoring code:
-   - Retain the user’s logic, naming conventions, and structure.
-   - Focus on the **specific change or behavior** the user requests.
-4. If something is unclear, ask short, precise clarification questions before making assumptions.
-5. When responding:
-   - Provide **only the relevant code fragment(s)** or concise diffs.
-   - Include brief inline comments explaining the rationale.
-6. Maintain full language syntax, indentation, and formatting.
-7. Suggest performance or readability improvements **only** if they align with the user's direction.
-
-Input Context:
+## Context Provided
 - Problem Statement: ${formData.problemStatement}
 - Test Cases: ${formData.testCases}
 - Expected Output: ${formData.expectedOutput}
 - Language: ${formData.language}
 
-Your Task:
-Start by acknowledging the problem briefly and ask the user what specific modification or refinement they’d like to make next.
-Do not output a full solution until explicitly asked.
+## Start
+1. Briefly acknowledge the problem and summarize your understanding (1–2 lines).
+2. Offer one concise observation, suggestion, or improvement based on the provided context.
+3. Then invite the user to guide the next step (e.g., “Would you like to refine this part or explore an alternative?”).
 `;
-
-
     setConversationStarted(true);
     await callGeminiApi([], initialPrompt);
   };
@@ -152,7 +195,7 @@ Do not output a full solution until explicitly asked.
   // Theme colors
   const theme = {
     bg: darkMode ? '#0a0e14' : '#ffffff',
-    bgGradient: darkMode 
+    bgGradient: darkMode
       ? 'radial-gradient(circle at 50% 0%, rgba(102, 126, 234, 0.08) 0%, transparent 50%)'
       : 'radial-gradient(circle at 50% 0%, rgba(102, 126, 234, 0.03) 0%, transparent 50%)',
     leftPanelBg: darkMode ? '#161b22' : '#fafbfc',
@@ -164,443 +207,67 @@ Do not output a full solution until explicitly asked.
   };
 
   return (
-    <Box 
-      sx={{ 
-        display: 'flex', 
-        flexDirection: 'column', 
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
         height: '100vh',
         backgroundColor: theme.bg,
         backgroundImage: theme.bgGradient,
         transition: 'background-color 0.3s ease',
       }}
     >
-      {/* Modern AppBar */}
-      <AppBar 
-        position="static" 
-        elevation={0}
-        sx={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          backdropFilter: 'blur(10px)',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-          boxShadow: '0 4px 24px rgba(102, 126, 234, 0.3)',
-        }}
-      >
-        <Toolbar sx={{ py: 1 }}>
-          {/* Logo/Brand */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexGrow: 1 }}>
-            <Box
-              sx={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '10px',
-                background: 'rgba(255, 255, 255, 0.15)',
-                backdropFilter: 'blur(10px)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-              }}
-            >
-              <CodeIcon sx={{ fontSize: 24, color: 'white' }} />
-            </Box>
-            <Box>
-              <Typography 
-                variant="h6" 
-                component="div" 
-                sx={{ 
-                  fontWeight: 700,
-                  letterSpacing: '-0.5px',
-                  fontSize: '20px',
-                }}
-              >
-                Gemini Code Helper
-              </Typography>
-              <Typography 
-                variant="caption" 
-                sx={{ 
-                  color: 'rgba(255, 255, 255, 0.7)',
-                  fontSize: '11px',
-                  fontWeight: 500,
-                }}
-              >
-                AI-Powered Coding Assistant
-              </Typography>
-            </Box>
-          </Box>
-
-          {/* Status Chip */}
-          {geminiApiKey && (
-            <Chip
-              label="API Connected"
-              size="small"
-              sx={{
-                mr: 2,
-                backgroundColor: 'rgba(76, 175, 80, 0.2)',
-                color: '#4caf50',
-                border: '1px solid rgba(76, 175, 80, 0.3)',
-                fontWeight: 600,
-                fontSize: '11px',
-              }}
-            />
-          )}
-
-          {/* Dark Mode Toggle */}
-          <IconButton 
-            color="inherit" 
-            onClick={toggleDarkMode}
-            sx={{ 
-              mr: 1,
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
-              backdropFilter: 'blur(10px)',
-              '&:hover': {
-                backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                transform: 'scale(1.05)',
-              },
-              transition: 'all 0.2s ease',
-            }}
-            title={darkMode ? 'Light Mode' : 'Dark Mode'}
-          >
-            {darkMode ? <Brightness7Icon /> : <Brightness4Icon />}
-          </IconButton>
-
-          {/* Action Buttons */}
-          <IconButton 
-            color="inherit" 
-            onClick={handleNewChat}
-            sx={{ 
-              mr: 1,
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
-              backdropFilter: 'blur(10px)',
-              '&:hover': {
-                backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                transform: 'scale(1.05)',
-              },
-              transition: 'all 0.2s ease',
-            }}
-            title="New Chat"
-          >
-            <AddCommentIcon />
-          </IconButton>
-          <Button 
-            color="inherit" 
-            onClick={() => setShowApiKeyDialog(true)}
-            startIcon={<KeyIcon />}
-            sx={{
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
-              backdropFilter: 'blur(10px)',
-              borderRadius: '10px',
-              px: 2,
-              fontWeight: 600,
-              textTransform: 'none',
-              '&:hover': {
-                backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                transform: 'translateY(-1px)',
-              },
-              transition: 'all 0.2s ease',
-            }}
-          >
-            API Key
-          </Button>
-        </Toolbar>
-      </AppBar>
+      <Header
+        geminiApiKey={geminiApiKey}
+        darkMode={darkMode}
+        toggleDarkMode={toggleDarkMode}
+        handleNewChat={handleNewChat}
+        setShowApiKeyDialog={setShowApiKeyDialog}
+        setShowPromptDialog={setShowPromptDialog}
+        handleOpenSlideshow={handleOpenSlideshow}
+        images={images}
+        currentImageIndex={currentImageIndex}
+      />
 
       {/* Main Content */}
       {!conversationStarted ? (
-        // Initial state - centered form
-        <Container 
-          maxWidth="md" 
-          sx={{ 
-            flexGrow: 1, 
-            display: 'flex', 
-            flexDirection: 'column', 
-            py: 3,
-            px: { xs: 2, sm: 3 },
-          }}
-        >
-          <Box 
-            sx={{ 
-              flexGrow: 1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <ProblemForm onSubmit={handleProblemSubmit} disabled={loading} darkMode={darkMode} />
-          </Box>
-        </Container>
+        <InitialView
+          handleProblemSubmit={handleProblemSubmit}
+          loading={loading}
+          darkMode={darkMode}
+        />
       ) : (
-        // Split view - resizable
-        <Box 
-          ref={containerRef}
-          sx={{ 
-            flexGrow: 1, 
-            display: 'flex',
-            overflow: 'hidden',
-            position: 'relative',
-            cursor: isResizing ? 'col-resize' : 'default',
-            userSelect: isResizing ? 'none' : 'auto',
-          }}
-        >
-          {/* Left Panel - Problem Details */}
-          <Box
-            sx={{
-              width: `${leftPanelWidth}%`,
-              borderRight: `1px solid ${theme.border}`,
-              backgroundColor: theme.leftPanelBg,
-              overflowY: 'auto',
-              p: 3,
-              transition: isResizing ? 'none' : 'width 0.2s ease, background-color 0.3s ease',
-              '&::-webkit-scrollbar': {
-                width: '6px',
-              },
-              '&::-webkit-scrollbar-track': {
-                background: darkMode ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
-              },
-              '&::-webkit-scrollbar-thumb': {
-                background: 'rgba(102, 126, 234, 0.2)',
-                borderRadius: '10px',
-                '&:hover': {
-                  background: 'rgba(102, 126, 234, 0.3)',
-                },
-              },
-            }}
-          >
-            <Typography 
-              variant="h6" 
-              sx={{ 
-                mb: 3, 
-                fontWeight: 700,
-                color: '#667eea',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-              }}
-            >
-              <CodeIcon sx={{ fontSize: 24 }} />
-              Problem Details
-            </Typography>
-
-            {problemData && (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <Box>
-                  <Typography 
-                    variant="subtitle2" 
-                    sx={{ 
-                      fontWeight: 700, 
-                      mb: 1, 
-                      color: theme.text,
-                      textTransform: 'uppercase',
-                      fontSize: '11px',
-                      letterSpacing: '0.5px',
-                    }}
-                  >
-                    Problem Statement
-                  </Typography>
-                  <Box
-                    sx={{
-                      p: 2,
-                      backgroundColor: theme.cardBg,
-                      borderRadius: '12px',
-                      border: `1px solid ${theme.border}`,
-                      boxShadow: darkMode ? '0 2px 8px rgba(0, 0, 0, 0.3)' : '0 2px 8px rgba(0, 0, 0, 0.04)',
-                      transition: 'background-color 0.3s ease',
-                    }}
-                  >
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        whiteSpace: 'pre-wrap', 
-                        color: theme.textSecondary,
-                        lineHeight: 1.7,
-                      }}
-                    >
-                      {problemData.problemStatement}
-                    </Typography>
-                  </Box>
-                </Box>
-
-                <Box>
-                  <Typography 
-                    variant="subtitle2" 
-                    sx={{ 
-                      fontWeight: 700, 
-                      mb: 1, 
-                      color: theme.text,
-                      textTransform: 'uppercase',
-                      fontSize: '11px',
-                      letterSpacing: '0.5px',
-                    }}
-                  >
-                    Test Cases
-                  </Typography>
-                  <Box
-                    sx={{
-                      p: 2,
-                      backgroundColor: theme.cardBg,
-                      borderRadius: '12px',
-                      border: `1px solid ${theme.border}`,
-                      boxShadow: darkMode ? '0 2px 8px rgba(0, 0, 0, 0.3)' : '0 2px 8px rgba(0, 0, 0, 0.04)',
-                      transition: 'background-color 0.3s ease',
-                    }}
-                  >
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        whiteSpace: 'pre-wrap', 
-                        color: theme.textSecondary,
-                        fontFamily: 'monospace',
-                        lineHeight: 1.7,
-                      }}
-                    >
-                      {problemData.testCases}
-                    </Typography>
-                  </Box>
-                </Box>
-
-                <Box>
-                  <Typography 
-                    variant="subtitle2" 
-                    sx={{ 
-                      fontWeight: 700, 
-                      mb: 1, 
-                      color: theme.text,
-                      textTransform: 'uppercase',
-                      fontSize: '11px',
-                      letterSpacing: '0.5px',
-                    }}
-                  >
-                    Expected Output
-                  </Typography>
-                  <Box
-                    sx={{
-                      p: 2,
-                      backgroundColor: theme.cardBg,
-                      borderRadius: '12px',
-                      border: `1px solid ${theme.border}`,
-                      boxShadow: darkMode ? '0 2px 8px rgba(0, 0, 0, 0.3)' : '0 2px 8px rgba(0, 0, 0, 0.04)',
-                      transition: 'background-color 0.3s ease',
-                    }}
-                  >
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        whiteSpace: 'pre-wrap', 
-                        color: theme.textSecondary,
-                        fontFamily: 'monospace',
-                        lineHeight: 1.7,
-                      }}
-                    >
-                      {problemData.expectedOutput}
-                    </Typography>
-                  </Box>
-                </Box>
-
-                <Box>
-                  <Typography 
-                    variant="subtitle2" 
-                    sx={{ 
-                      fontWeight: 700, 
-                      mb: 1, 
-                      color: theme.text,
-                      textTransform: 'uppercase',
-                      fontSize: '11px',
-                      letterSpacing: '0.5px',
-                    }}
-                  >
-                    Language
-                  </Typography>
-                  <Chip
-                    label={problemData.language}
-                    sx={{
-                      backgroundColor: '#667eea',
-                      color: 'white',
-                      fontWeight: 600,
-                      fontSize: '13px',
-                      px: 1,
-                    }}
-                  />
-                </Box>
-              </Box>
-            )}
-          </Box>
-
-          {/* Resizable Divider */}
-          <Box
-            onMouseDown={() => setIsResizing(true)}
-            sx={{
-              width: '8px',
-              cursor: 'col-resize',
-              backgroundColor: 'transparent',
-              position: 'relative',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'background-color 0.2s ease',
-              '&:hover': {
-                backgroundColor: 'rgba(102, 126, 234, 0.1)',
-              },
-              '&:hover .drag-indicator': {
-                opacity: 1,
-              },
-            }}
-          >
-            <Box
-              className="drag-indicator"
-              sx={{
-                width: '4px',
-                height: '40px',
-                borderRadius: '2px',
-                backgroundColor: '#667eea',
-                opacity: 0,
-                transition: 'opacity 0.2s ease',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <DragIndicatorIcon 
-                sx={{ 
-                  fontSize: 16, 
-                  color: 'white',
-                }} 
-              />
-            </Box>
-          </Box>
-
-          {/* Right Panel - Chat Area */}
-          <Box
-            sx={{
-              width: `${100 - leftPanelWidth}%`,
-              display: 'flex',
-              flexDirection: 'column',
-              backgroundColor: theme.chatBg,
-              transition: isResizing ? 'none' : 'width 0.2s ease, background-color 0.3s ease',
-            }}
-          >
-            <Container 
-              maxWidth="xl" 
-              sx={{ 
-                flexGrow: 1, 
-                display: 'flex', 
-                flexDirection: 'column', 
-                py: 3,
-                px: 3,
-                height: '100%',
-              }}
-            >
-              <ChatWindow messages={chatHistory} loading={loading} darkMode={darkMode} />
-              
-              {/* Input Area */}
-              <Box sx={{ mt: 'auto', pt: 2 }}>
-                <ChatInput onSendMessage={handleSendMessage} disabled={loading} darkMode={darkMode} />
-              </Box>
-            </Container>
-          </Box>
-        </Box>
+        <MainView
+          containerRef={containerRef}
+          isResizing={isResizing}
+          leftPanelWidth={leftPanelWidth}
+          theme={theme}
+          problemData={problemData}
+          setIsResizing={setIsResizing}
+          chatHistory={chatHistory}
+          loading={loading}
+          darkMode={darkMode}
+          handleSendMessage={handleSendMessage}
+        />
       )}
 
       {/* Dialogs */}
       <ApiKeyDialog open={showApiKeyDialog} onClose={handleApiKeyClose} />
+      <PromptEditDialog
+        open={showPromptDialog}
+        onClose={() => setShowPromptDialog(false)}
+        onSave={handleSavePrompt}
+        prompt={systemPrompt}
+      />
+
+      {/* Full-Screen Slideshow Modal */}
+      {showSlideshow && (
+        <ImageSlideshow
+          images={images}
+          initialIndex={slideshowIndex}
+          onClose={handleCloseSlideshow}
+        />
+      )}
     </Box>
   );
 }

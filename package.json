@@ -5,6 +5,7 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+    "@google/gemini-cli": "^0.13.0",
     "@google/generative-ai": "^0.24.1",
     "@mui/icons-material": "^7.3.5",
     "@mui/material": "^7.3.5",
@@ -16,6 +17,8 @@
     "react-dom": "^19.2.0",
     "react-scripts": "5.0.1",
     "react-syntax-highlighter": "^16.1.0",
+    "react-virtualized-auto-sizer": "^1.0.26",
+    "react-window": "^2.2.3",
     "web-vitals": "^2.1.4"
   },
   "scripts": {

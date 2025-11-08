@@ -5,7 +5,7 @@ const ProblemForm = ({ onSubmit, disabled }) => {
   const [problemStatement, setProblemStatement] = useState('');
   const [testCases, setTestCases] = useState('');
   const [expectedOutput, setExpectedOutput] = useState('');
-  const [language, setLanguage] = useState('javascript'); // Default language
+  const [language, setLanguage] = useState('C++'); // Default language
 
   const handleSubmit = (event) => {
     event.preventDefault();

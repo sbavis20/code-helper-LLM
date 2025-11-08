@@ -1,22 +1,25 @@
 # Gemini Code Helper
 
-Gemini Code Helper is a web-based, conversational AI chat application designed to assist developers in solving coding problems, debugging, and generating code snippets. Powered by Google's Gemini Pro model, it provides a dynamic and interactive interface for a seamless coding assistance experience.
+Gemini Code Helper is a web-based, conversational AI chat application designed to assist developers in solving coding problems, debugging, and generating code snippets. Powered by Google's Gemini model, it provides a dynamic and interactive interface for a seamless coding assistance experience.
 
 ## Features
 
 - **Conversational Interface**: Engage in a natural, back-and-forth chat to refine solutions and ask follow-up questions.
+- **Customizable System Prompt**: Modify the AI's instructions at runtime to tailor its personality and responses to your needs.
 - **Context-Aware Responses**: The application sends the recent conversation history with each request, allowing the AI to provide contextually relevant answers.
 - **Syntax Highlighting**: Code blocks in the AI's responses are automatically formatted and highlighted for readability.
-- **Secure API Key Handling**: Your Gemini API key is stored securely in your browser's local storage and is never exposed on the client-side.
+- **Secure API Key Handling**: Your Gemini API key is stored securely in your browser's local storage.
 - **Session Management**: Easily start a new conversation and clear the chat history with the "New Chat" button.
-- **Loading Indicator**: A "Gemini is typing..." indicator provides real-time feedback while the AI is generating a response.
+- **Dark Mode**: Toggle between light and dark themes for your comfort.
+- **Image Slideshow**: A branding image slideshow is available in the header.
+- **Loading Indicator**: A "Gemini is thinking..." indicator provides real-time feedback while the AI is generating a response.
 - **Error Handling**: The application provides clear error messages for common issues like invalid API keys or network problems.
 
 ## Technology Stack
 
 - **Frontend**: React.js
 - **UI Library**: Material-UI (MUI) for a clean and modern user interface.
-- **AI Model**: Google Gemini 2.5 Flash via the `@google/generative-ai` SDK.
+- **AI Model**: Google Gemini via the `@google/generative-ai` SDK.
 - **Code Formatting**: `react-syntax-highlighter` for beautiful and readable code snippets.
 
 ## Getting Started
@@ -62,17 +65,24 @@ Follow these instructions to get a local copy of the project up and running.
 
 3.  **Interact with the Chat**: Once the initial response is received, the form will be replaced by a chat input field. Use this to ask follow-up questions, request modifications to the code, or ask for further clarification.
 
-4.  **Start a New Chat**: To begin a new problem, click the "New Chat" icon in the top-right corner of the application. This will clear the current conversation and bring back the initial problem form.
+4.  **Edit the System Prompt**: Click the "Edit" icon in the header to open a dialog where you can modify the system prompt. This allows you to change the AI's behavior and personality.
+
+5.  **Start a New Chat**: To begin a new problem, click the "New Chat" icon in the top-right corner of the application. This will clear the current conversation and bring back the initial problem form.
 
 ## Project Structure
 
 The application is organized into a `src` directory with the following key components:
 
-- **`App.js`**: The main component that manages the application's state, logic, and layout.
+- **`App.js`**: The main container component that manages the application's state and logic.
 - **`utils/geminiApi.js`**: A utility module that handles all communication with the Google Gemini API.
 - **`components/`**: A directory containing all the reusable React components:
+  - **`Header.js`**: The application header, including branding, navigation, and action buttons.
+  - **`InitialView.js`**: The initial view of the application, containing the problem submission form.
+  - **`MainView.js`**: The main chat view, which includes the problem details and the chat window.
   - **`ApiKeyDialog.js`**: The modal for entering the API key.
-  - **`ProblemForm.js`**: The initial form for submitting a new problem.
+  - **`PromptEditDialog.js`**: The modal for editing the system prompt.
+  - **`ProblemForm.js`**: The form for submitting a new problem.
   - **`ChatWindow.js`**: The container that displays the chat history.
   - **`Message.js`**: The component that renders a single chat message with syntax highlighting.
   - **`ChatInput.js`**: The input field for sending follow-up messages.
+  - **`ImageSlideshow.js`**: The component for the branding image slideshow.
